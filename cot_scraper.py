@@ -53,17 +53,45 @@ def parse_cot_data():
                 idx = lines.index(line)
                 changes_line = lines[idx+1]
         
-        # 2. Ambil semua token karakter yang mirip angka/data
+        # Debug: Tampilkan raw lines untuk analisis
+        print(f"All line: {all_line}")
+        print(f"Changes line: {changes_line}")
+        
+        # 2. Ambil semua token yang mirip angka
         raw_numbers = re.findall(r'[\d,.-]+', all_line)
         raw_change_numbers = re.findall(r'[\d,.-]+', changes_line)
         
-        # FIX KUNCI: Filter hanya angka bulat saja (buang yang mengandung titik desimal seperti 75.5)
-        # Langkah ini menjamin kita hanya memproses data murni komitmen total kontrak
-        numbers = [num for num in raw_numbers if '.' not in num]
-        change_numbers = [num for num in raw_change_numbers if '.' not in num]
+        # Debug: Tampilkan raw numbers
+        print(f"Raw numbers: {raw_numbers}")
+        print(f"Raw change numbers: {raw_change_numbers}")
+        
+        # FIX: Filter HANYA angka integer murni (tidak mengandung titik desimal)
+        # Regex untuk mencocokkan hanya integer (boleh ada koma sebagai pemisah ribuan)
+        def filter_integers(num_list):
+            integers = []
+            for num in num_list:
+                # Hapus koma untuk pengecekan
+                cleaned = num.replace(',', '')
+                # Cek apakah ini angka integer valid (tidak mengandung titik)
+                if re.match(r'^-?\d+$', cleaned):
+                    integers.append(num)
+            return integers
+        
+        numbers = filter_integers(raw_numbers)
+        change_numbers = filter_integers(raw_change_numbers)
+        
+        # Debug: Tampilkan filtered numbers
+        print(f"Filtered integers: {numbers}")
+        print(f"Filtered change integers: {change_numbers}")
+        
+        # Validasi jumlah data
+        if len(numbers) < 4:
+            return f"Data tidak lengkap. Hanya ditemukan {len(numbers)} angka integer. Raw: {raw_numbers}"
+        
+        if len(change_numbers) < 3:
+            return f"Data perubahan tidak lengkap. Hanya ditemukan {len(change_numbers)} angka. Raw: {raw_change_numbers}"
         
         # 3. Ekstrak data berdasarkan posisi indeks angka bulat murni
-        # Biasanya: indeks 0 = teks/kosong atau angka pertama, indeks 1 = Open Interest, 2 = Long, 3 = Short
         open_interest = int(numbers[1].replace(',', ''))
         long_pos = int(numbers[2].replace(',', ''))
         short_pos = int(numbers[3].replace(',', ''))
@@ -86,11 +114,14 @@ def parse_cot_data():
             f"  • *Net Position:* {net_position:,}\n\n"
             f"🔥 *Sentimen Pasar:* {sentiment}\n"
             f"=============================\n"
-            f"⚡ _Filter angka desimal sukses diterapkan, data valid!_"
+            f"⚡ _Filter integer ketat berhasil diterapkan!_"
         )
         return report
 
     except Exception as e:
+        import traceback
+        error_detail = traceback.format_exc()
+        print(f"Error detail: {error_detail}")
         return f"Terjadi error saat parsing data: {str(e)}"
 
 if __name__ == "__main__":
