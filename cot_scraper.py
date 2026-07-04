@@ -1,5 +1,5 @@
-import urllib.request
-import urllib.parse
+
+import requests
 import re
 import os
 
@@ -7,63 +7,67 @@ import os
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
 
-# URL VALID DARI LU (COMEX Futures & Options Combined)
+# URL VALID DARI LU
 CFTC_URL = "https://www.cftc.gov/dea/options/deacmxlof.htm"
 
-# LIST PRIVATE PROXY LU
+# LIST PRIVATE PROXY LU (Format yang dimengerti library requests)
+# Disamain persis kayak skema curl -x lu tadi
 PRIVATE_PROXIES = [
-    {"ip": "31.59.20.176", "port": "6754", "user": "epefkxqk", "pass": "cgq4onvt02dz"},
-    {"ip": "31.56.127.193", "port": "7684", "user": "epefkxqk", "pass": "cgq4onvt02dz"},
-    {"ip": "45.38.107.97", "port": "6014", "user": "epefkxqk", "pass": "cgq4onvt02dz"},
-    {"ip": "38.154.203.95", "port": "5863", "user": "epefkxqk", "pass": "cgq4onvt02dz"},
-    {"ip": "198.105.121.200", "port": "6462", "user": "epefkxqk", "pass": "cgq4onvt02dz"},
-    {"ip": "64.137.96.74", "port": "6641", "user": "epefkxqk", "pass": "cgq4onvt02dz"},
-    {"ip": "198.23.243.226", "port": "6361", "user": "epefkxqk", "pass": "cgq4onvt02dz"},
-    {"ip": "38.154.185.97", "port": "6370", "user": "epefkxqk", "pass": "cgq4onvt02dz"},
-    {"ip": "142.111.67.146", "port": "5611", "user": "epefkxqk", "pass": "cgq4onvt02dz"},
-    {"ip": "191.96.254.138", "port": "6185", "user": "epefkxqk", "pass": "cgq4onvt02dz"}
+    "http://epefkxqk:cgq4onvt02dz@31.59.20.176:6754",
+    "http://epefkxqk:cgq4onvt02dz@31.56.127.193:7684",
+    "http://epefkxqk:cgq4onvt02dz@45.38.107.97:6014",
+    "http://epefkxqk:cgq4onvt02dz@38.154.203.95:5863",
+    "http://epefkxqk:cgq4onvt02dz@198.105.121.200:6462",
+    "http://epefkxqk:cgq4onvt02dz@64.137.96.74:6641",
+    "http://epefkxqk:cgq4onvt02dz@198.23.243.226:6361",
+    "http://epefkxqk:cgq4onvt02dz@38.154.185.97:6370",
+    "http://epefkxqk:cgq4onvt02dz@142.111.67.146:5611",
+    "http://epefkxqk:cgq4onvt02dz@191.96.254.138:6185"
 ]
 
 def send_telegram_message(message):
-    payload = f"chat_id={CHAT_ID}&text={urllib.parse.quote(message)}&parse_mode=Markdown"
-    url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage?{payload}"
+    url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
+    payload = {
+        "chat_id": CHAT_ID,
+        "text": message,
+        "parse_mode": "Markdown"
+    }
     try:
-        headers = {'User-Agent': 'Mozilla/5.0'}
-        req = urllib.request.Request(url, headers=headers)
-        urllib.request.urlopen(req)
+        requests.post(url, json=payload, timeout=10)
         print("Pesan berhasil dikirim ke Telegram!")
     except Exception as e:
         print(f"Gagal mengirim pesan ke Telegram: {e}")
 
-def fetch_data_with_private_proxy():
+def fetch_data_like_curl():
     headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
     }
     
-    # Loop melalui list private proxy lu
-    for p in PRIVATE_PROXIES:
-        proxy_url = f"http://{p['user']}:{p['pass']}@{p['ip']}:{p['port']}"
+    # Loop nyobain proxy satu per satu pake engine requests (setara curl)
+    for proxy in PRIVATE_PROXIES:
+        proxy_config = {
+            "http": proxy,
+            "https": proxy
+        }
         try:
-            print(f"Mencoba koneksi ke CFTC via proxy: {p['ip']}:{p['port']}")
+            print(f"Mencoba nembus via proxy (Curl Mode): {proxy.split('@')[-1]}")
+            # requests.get otomatis nanganin SSL/TLS tunneling dengan bener lewat proxy
+            response = requests.get(CFTC_URL, headers=headers, proxies=proxy_config, timeout=12)
             
-            proxy_support = urllib.request.ProxyHandler({'http': proxy_url, 'https': proxy_url})
-            opener = urllib.request.build_opener(proxy_support)
-            opener.addheaders = [('User-Agent', headers['User-Agent'])]
-            
-            with opener.open(CFTC_URL, timeout=12) as response:
-                data = response.read().decode('utf-8')
-                print(f"🚀 BERHASIL! Data .htm sukses diambil via Proxy: {p['ip']}")
-                return data
-        except Exception as proxy_error:
-            print(f"Proxy {p['ip']} gagal ({proxy_error}), mencoba proxy berikutnya...")
+            if response.status_code == 200:
+                print("🚀 BOOM! Sukses ambil data pake Requests ala Curl!")
+                return response.text
+            else:
+                print(f"Proxy merespons tapi status code: {response.status_code}")
+        except Exception as e:
+            print(f"Proxy gagal merespons: {e}")
             continue
             
-    raise Exception("Seluruh Private Proxy gagal memuat halaman web CFTC.")
+    raise Exception("Seluruh Proxy premium lu gagal diproses oleh sistem.")
 
 def parse_cot_data():
     try:
-        # Ambil html mentah lewat proxy
-        html = fetch_data_with_private_proxy()
+        html = fetch_data_like_curl()
         
         # Cari blok data GOLD menggunakan Regex
         pattern = r"(GOLD - COMMODITY EXCHANGE INC\..*?)(?=\n\n|\Z)"
@@ -110,7 +114,7 @@ def parse_cot_data():
             f"  • *Net Position:* {net_position:,}\n\n"
             f"🔥 *Sentimen Pasar:* {sentiment}\n"
             f"=============================\n"
-            f"💡 _Target URL 100% Valid. Sistem Otomatis Berjalan Sukses!_"
+            f"💡 _Bypass HTTPS Proxy via Requests Sukses Total!_"
         )
         return report
 
