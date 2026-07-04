@@ -1,4 +1,3 @@
-
 import requests
 import re
 import os
@@ -7,23 +6,8 @@ import os
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
 
-# URL VALID DARI LU
-CFTC_URL = "https://www.cftc.gov/dea/options/deacmxlof.htm"
-
-# LIST PRIVATE PROXY LU (Format yang dimengerti library requests)
-# Disamain persis kayak skema curl -x lu tadi
-PRIVATE_PROXIES = [
-    "http://epefkxqk:cgq4onvt02dz@31.59.20.176:6754",
-    "http://epefkxqk:cgq4onvt02dz@31.56.127.193:7684",
-    "http://epefkxqk:cgq4onvt02dz@45.38.107.97:6014",
-    "http://epefkxqk:cgq4onvt02dz@38.154.203.95:5863",
-    "http://epefkxqk:cgq4onvt02dz@198.105.121.200:6462",
-    "http://epefkxqk:cgq4onvt02dz@64.137.96.74:6641",
-    "http://epefkxqk:cgq4onvt02dz@198.23.243.226:6361",
-    "http://epefkxqk:cgq4onvt02dz@38.154.185.97:6370",
-    "http://epefkxqk:cgq4onvt02dz@142.111.67.146:5611",
-    "http://epefkxqk:cgq4onvt02dz@191.96.254.138:6185"
-]
+# Menggunakan Jina AI Reader sebagai Bouncer/Bypass IP
+JINA_READER_URL = "https://r.jina.ai/https://www.cftc.gov/dea/options/deacmxlof.htm"
 
 def send_telegram_message(message):
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
@@ -38,43 +22,24 @@ def send_telegram_message(message):
     except Exception as e:
         print(f"Gagal mengirim pesan ke Telegram: {e}")
 
-def fetch_data_like_curl():
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-    }
-    
-    # Loop nyobain proxy satu per satu pake engine requests (setara curl)
-    for proxy in PRIVATE_PROXIES:
-        proxy_config = {
-            "http": proxy,
-            "https": proxy
-        }
-        try:
-            print(f"Mencoba nembus via proxy (Curl Mode): {proxy.split('@')[-1]}")
-            # requests.get otomatis nanganin SSL/TLS tunneling dengan bener lewat proxy
-            response = requests.get(CFTC_URL, headers=headers, proxies=proxy_config, timeout=12)
-            
-            if response.status_code == 200:
-                print("🚀 BOOM! Sukses ambil data pake Requests ala Curl!")
-                return response.text
-            else:
-                print(f"Proxy merespons tapi status code: {response.status_code}")
-        except Exception as e:
-            print(f"Proxy gagal merespons: {e}")
-            continue
-            
-    raise Exception("Seluruh Proxy premium lu gagal diproses oleh sistem.")
-
 def parse_cot_data():
     try:
-        html = fetch_data_like_curl()
+        print("Mengambil data CFTC via Jina AI Reader...")
+        
+        # Jina AI Reader mengembalikan teks langsung tanpa perlu handling proxy manual
+        response = requests.get(JINA_READER_URL, timeout=30)
+        
+        if response.status_code != 200:
+            return f"Jina AI Reader gagal merespons. Status: {response.status_code}"
+            
+        markdown_text = response.text
         
         # Cari blok data GOLD menggunakan Regex
         pattern = r"(GOLD - COMMODITY EXCHANGE INC\..*?)(?=\n\n|\Z)"
-        match = re.search(pattern, html, re.DOTALL | re.IGNORECASE)
+        match = re.search(pattern, markdown_text, re.DOTALL | re.IGNORECASE)
         
         if not match:
-            return "Data GOLD tidak ditemukan di halaman web CFTC."
+            return "Data GOLD tidak ditemukan di output Jina Reader."
             
         block_text = match.group(1)
         lines = block_text.split('\n')
@@ -104,7 +69,7 @@ def parse_cot_data():
         sentiment = "🟢 BULLISH" if net_position > 0 else "🔴 BEARISH"
         
         report = (
-            f"📊 *LAPORAN COT EMAS (GOLD) TERBARU*\n"
+            f"📊 *LAPORAN COT EMAS (GOLD) VIA JINA AI*\n"
             f"📅 _Laporan: {date_info}_\n"
             f"=============================\n"
             f"🔹 *Open Interest:* {open_interest:,}\n\n"
@@ -114,7 +79,7 @@ def parse_cot_data():
             f"  • *Net Position:* {net_position:,}\n\n"
             f"🔥 *Sentimen Pasar:* {sentiment}\n"
             f"=============================\n"
-            f"💡 _Bypass HTTPS Proxy via Requests Sukses Total!_"
+            f"⚡ _Bypass Sukses Menggunakan Infrastruktur Jina.ai Reader!_"
         )
         return report
 
