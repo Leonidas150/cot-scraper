@@ -1,4 +1,4 @@
-name: Run COT Scraper Bot
+name: Run COT Scraper Bot via Jina AI
 
 on:
   schedule:
@@ -18,7 +18,6 @@ jobs:
       with:
         python-version: '3.10'
 
-    # TAMBAHKAN INI BIAR BISA PAKE REQUESTS SEPERTI CURL
     - name: Install Dependencies
       run: pip install requests
 
