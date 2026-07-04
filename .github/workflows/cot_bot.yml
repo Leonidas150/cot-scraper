@@ -2,10 +2,8 @@ name: Run COT Scraper Bot
 
 on:
   schedule:
-    # Berjalan setiap hari Sabtu jam 21:00 UTC (Minggu 04:00 WIB)
-    # Anda bisa sesuaikan jamnya setelah memastikan data CFTC sudah rilis
     - cron: '0 21 * * 6'
-  workflow_dispatch: # Tombol rahasia agar bisa lu jalankan manual kapan saja
+  workflow_dispatch:
 
 jobs:
   run-bot:
@@ -16,10 +14,13 @@ jobs:
       uses: actions/checkout@v3
 
     - name: Set up Python
-      uses: actions/setup-python@v4   # <-- INI YANG BENAR
+      uses: actions/setup-python@v4
       with:
         python-version: '3.10'
 
+    # TAMBAHKAN INI BIAR BISA PAKE REQUESTS SEPERTI CURL
+    - name: Install Dependencies
+      run: pip install requests
 
     - name: Execute Python Script
       env:
