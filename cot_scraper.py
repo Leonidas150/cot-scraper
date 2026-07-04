@@ -32,7 +32,7 @@ def parse_cot_data():
             
         markdown_text = response.text
         
-        # Cari blok data GOLD menggunakan Regex
+        # 1. Cari blok data GOLD menggunakan Regex
         pattern = r"(GOLD - COMMODITY EXCHANGE INC\..*?)(?=\n\n|\Z)"
         match = re.search(pattern, markdown_text, re.DOTALL | re.IGNORECASE)
         
@@ -53,23 +53,30 @@ def parse_cot_data():
                 idx = lines.index(line)
                 changes_line = lines[idx+1]
         
-        numbers = re.findall(r'[\d,.-]+', all_line)
-        change_numbers = re.findall(r'[\d,.-]+', changes_line)
+        # 2. Ambil semua token karakter yang mirip angka/data
+        raw_numbers = re.findall(r'[\d,.-]+', all_line)
+        raw_change_numbers = re.findall(r'[\d,.-]+', changes_line)
         
-        # FIX KUNCI: Ubah ke float dulu sebelum dikonversi ke int agar kebal error desimal '75.5'
-        open_interest = int(float(numbers[1].replace(',', '')))
-        long_pos = int(float(numbers[2].replace(',', '')))
-        short_pos = int(float(numbers[3].replace(',', '')))
+        # FIX KUNCI: Filter hanya angka bulat saja (buang yang mengandung titik desimal seperti 75.5)
+        # Langkah ini menjamin kita hanya memproses data murni komitmen total kontrak
+        numbers = [num for num in raw_numbers if '.' not in num]
+        change_numbers = [num for num in raw_change_numbers if '.' not in num]
         
-        change_long = int(float(change_numbers[1].replace(',', '')))
-        change_short = int(float(change_numbers[2].replace(',', '')))
+        # 3. Ekstrak data berdasarkan posisi indeks angka bulat murni
+        # Biasanya: indeks 0 = teks/kosong atau angka pertama, indeks 1 = Open Interest, 2 = Long, 3 = Short
+        open_interest = int(numbers[1].replace(',', ''))
+        long_pos = int(numbers[2].replace(',', ''))
+        short_pos = int(numbers[3].replace(',', ''))
         
-        # Hitung Analisis Kuantitatif Net Position
+        change_long = int(change_numbers[1].replace(',', ''))
+        change_short = int(change_numbers[2].replace(',', ''))
+        
+        # 4. Hitung Analisis Kuantitatif Net Position
         net_position = long_pos - short_pos
         sentiment = "🟢 BULLISH" if net_position > 0 else "🔴 BEARISH"
         
         report = (
-            f"📊 *LAPORAN COT EMAS (GOLD) TERBARU*\n"
+            f"📊 *LAPORAN COT EMAS (GOLD) COMBINED*\n"
             f"📅 _Laporan: {date_info}_\n"
             f"=============================\n"
             f"🔹 *Open Interest:* {open_interest:,}\n\n"
@@ -79,7 +86,7 @@ def parse_cot_data():
             f"  • *Net Position:* {net_position:,}\n\n"
             f"🔥 *Sentimen Pasar:* {sentiment}\n"
             f"=============================\n"
-            f"⚡ _Bypass Sukses & Konversi Angka Desimal Sempurna!_"
+            f"⚡ _Filter angka desimal sukses diterapkan, data valid!_"
         )
         return report
 
