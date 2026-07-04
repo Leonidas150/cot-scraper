@@ -25,8 +25,6 @@ def send_telegram_message(message):
 def parse_cot_data():
     try:
         print("Mengambil data CFTC via Jina AI Reader...")
-        
-        # Jina AI Reader mengembalikan teks langsung tanpa perlu handling proxy manual
         response = requests.get(JINA_READER_URL, timeout=30)
         
         if response.status_code != 200:
@@ -58,18 +56,20 @@ def parse_cot_data():
         numbers = re.findall(r'[\d,.-]+', all_line)
         change_numbers = re.findall(r'[\d,.-]+', changes_line)
         
-        open_interest = int(numbers[1].replace(',', ''))
-        long_pos = int(numbers[2].replace(',', ''))
-        short_pos = int(numbers[3].replace(',', ''))
+        # FIX KUNCI: Ubah ke float dulu sebelum dikonversi ke int agar kebal error desimal '75.5'
+        open_interest = int(float(numbers[1].replace(',', '')))
+        long_pos = int(float(numbers[2].replace(',', '')))
+        short_pos = int(float(numbers[3].replace(',', '')))
         
-        change_long = int(change_numbers[1].replace(',', ''))
-        change_short = int(change_numbers[2].replace(',', ''))
+        change_long = int(float(change_numbers[1].replace(',', '')))
+        change_short = int(float(change_numbers[2].replace(',', '')))
         
+        # Hitung Analisis Kuantitatif Net Position
         net_position = long_pos - short_pos
         sentiment = "🟢 BULLISH" if net_position > 0 else "🔴 BEARISH"
         
         report = (
-            f"📊 *LAPORAN COT EMAS (GOLD) VIA JINA AI*\n"
+            f"📊 *LAPORAN COT EMAS (GOLD) TERBARU*\n"
             f"📅 _Laporan: {date_info}_\n"
             f"=============================\n"
             f"🔹 *Open Interest:* {open_interest:,}\n\n"
@@ -79,7 +79,7 @@ def parse_cot_data():
             f"  • *Net Position:* {net_position:,}\n\n"
             f"🔥 *Sentimen Pasar:* {sentiment}\n"
             f"=============================\n"
-            f"⚡ _Bypass Sukses Menggunakan Infrastruktur Jina.ai Reader!_"
+            f"⚡ _Bypass Sukses & Konversi Angka Desimal Sempurna!_"
         )
         return report
 
