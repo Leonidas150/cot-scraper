@@ -1,8 +1,7 @@
 name: Run COT Scraper Bot via Jina AI
 
 on:
-  schedule:
-    - cron: '0 21 * * 6'
+
   workflow_dispatch:
 
 jobs:
